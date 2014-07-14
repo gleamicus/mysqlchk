@@ -20,6 +20,7 @@ var timeout = flag.String("timeout", "10s", "MySQL connection timeout")
 var availableWhenDonor = flag.Bool("donor", false, "Cluster available while node is a donor")
 var availableWhenReadonly = flag.Bool("readonly", false, "Cluster available while node is read only")
 var forceFailFile = flag.String("failfile", "/dev/shm/proxyoff", "Create this file to manually fail checks")
+var forceUpFile = flag.String("upfile", "/dev/shm/proxyon", "Create this file to manually pass checks")
 var bindPort = flag.Int("bindport", 9200, "MySQLChk bind port")
 var bindAddr = flag.String("bindaddr", "", "MySQLChk bind address")
 
@@ -30,6 +31,11 @@ func init() {
 func checkHandler(w http.ResponseWriter, r *http.Request) {
 	var fieldName, readOnly string
 	var wsrepState int
+
+	if _, err := os.Stat(*forceUpFile); err == nil {
+		fmt.Fprint(w, "Cluster node OK by manual override\n")
+		return
+	}
 
 	if _, err := os.Stat(*forceFailFile); err == nil {
 		http.Error(w, "Cluster node unavailable by manual override", http.StatusNotFound)
