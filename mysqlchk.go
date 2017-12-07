@@ -14,6 +14,7 @@ var readOnlyStmt *sql.Stmt
 
 var username = flag.String("username", "clustercheckuser", "MySQL Username")
 var password = flag.String("password", "clustercheckpassword!", "MySQL Password")
+var socket = flag.String("socket", "", "MySQL UNIX Socket")
 var host = flag.String("host", "localhost", "MySQL Server")
 var port = flag.Int("port", 3306, "MySQL Port")
 var timeout = flag.String("timeout", "10s", "MySQL connection timeout")
@@ -74,6 +75,10 @@ func main() {
 	flag.Parse()
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?timeout=%s", *username, *password, *host, *port, *timeout)
+	if *socket != "" {
+		dsn = fmt.Sprintf("%s:%s@unix(%s)/?timeout=%s", *username, *password, *socket, *timeout)
+	}
+
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		panic(err.Error())
