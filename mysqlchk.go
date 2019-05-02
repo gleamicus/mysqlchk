@@ -11,6 +11,8 @@ import "net/http"
 var db *sql.DB
 var wsrepStmt *sql.Stmt
 var readOnlyStmt *sql.Stmt
+var maxConnStmt *sql.Stmt
+var connUsedStmt *sql.Stmt
 
 var username = flag.String("username", "clustercheckuser", "MySQL Username")
 var password = flag.String("password", "clustercheckpassword!", "MySQL Password")
@@ -32,6 +34,8 @@ func init() {
 func checkHandler(w http.ResponseWriter, r *http.Request) {
 	var fieldName, readOnly string
 	var wsrepState int
+	var maxConn int
+	var connUsed int
 
 	if _, err := os.Stat(*forceUpFile); err == nil {
 		fmt.Fprint(w, "Cluster node OK by manual override\n")
@@ -42,8 +46,26 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Cluster node unavailable by manual override", http.StatusNotFound)
 		return
 	}
+	err := maxConnStmt.QueryRow().Scan(&fieldName, &maxConn)
 
-	err := wsrepStmt.QueryRow().Scan(&fieldName, &wsrepState)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = connUsedStmt.QueryRow().Scan(&fieldName, &connUsed)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if maxConn <= (connUsed + 10) {
+		http.Error(w, "Cluster node is unavailable Max connections", http.StatusServiceUnavailable)
+	} else {
+		log.Println("Number of free connections", maxConn-connUsed)
+	}
+
+	err = wsrepStmt.QueryRow().Scan(&fieldName, &wsrepState)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -92,6 +114,15 @@ func main() {
 	}
 
 	wsrepStmt, err = db.Prepare("show global status like 'wsrep_local_state'")
+	if err != nil {
+		log.Fatal(err)
+	}
+	maxConnStmt, err = db.Prepare("show variables like 'max_connections'")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	connUsedStmt, err = db.Prepare("show status where variable_name = 'Threads_connected'")
 	if err != nil {
 		log.Fatal(err)
 	}
