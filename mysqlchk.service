@@ -1,0 +1,10 @@
+[Unit]
+Description=Mysqlchk check
+After=mariadb.service
+
+[Service]
+ExecStart=/usr/bin/mysqlchk
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
