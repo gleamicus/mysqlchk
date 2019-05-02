@@ -46,8 +46,8 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Cluster node unavailable by manual override", http.StatusNotFound)
 		return
 	}
-	err := maxConnStmt.QueryRow().Scan(&fieldName, &maxConn)
 
+	err := maxConnStmt.QueryRow().Scan(&fieldName, &maxConn)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -117,6 +117,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	maxConnStmt, err = db.Prepare("show variables like 'max_connections'")
 	if err != nil {
 		log.Fatal(err)
